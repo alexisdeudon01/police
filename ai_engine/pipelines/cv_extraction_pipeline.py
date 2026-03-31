@@ -4,8 +4,8 @@ CV extraction pipeline.
 
 from __future__ import annotations
 from typing import Any, Dict
-from app.ai_engine.pipelines.base_pipeline import Pipeline, PipelineStep
-from app.ai_engine.providers.provider_registry import ProviderRegistry
+from ai_engine.pipelines.base_pipeline import Pipeline, PipelineStep
+from ai_engine.providers.provider_registry import ProviderRegistry
 
 class ExtractCVFieldsStep(PipelineStep):
     name = "extract_cv_fields"

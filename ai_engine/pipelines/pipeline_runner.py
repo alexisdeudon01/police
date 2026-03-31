@@ -4,7 +4,7 @@ Pipeline runner.
 
 from __future__ import annotations
 from typing import Any, Dict
-from app.ai_engine.pipelines.base_pipeline import Pipeline
+from ai_engine.pipelines.base_pipeline import Pipeline
 
 class PipelineRunner:
 

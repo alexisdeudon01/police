@@ -1,5 +1,5 @@
 from typing import Dict
-from app.ai_engine.providers.base_provider import BaseLLMProvider
+from ai_engine.providers.base_provider import BaseLLMProvider
 
 class ProviderRegistry:
     """Global registry for LLM providers."""

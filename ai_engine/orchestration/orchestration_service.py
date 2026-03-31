@@ -5,10 +5,10 @@ High-level orchestration service.
 from __future__ import annotations
 from typing import Any, Dict, Optional
 
-from app.ai_engine.orchestration.planner import OrchestrationPlanner
-from app.ai_engine.orchestration.executor import OrchestrationExecutor, ExecuteOptions
-from app.ai_engine.orchestration.orchestration_models import ExecutionResult
-from app.ai_engine.providers.provider_registry import ProviderRegistry
+from ai_engine.orchestration.planner import OrchestrationPlanner
+from ai_engine.orchestration.executor import OrchestrationExecutor, ExecuteOptions
+from ai_engine.orchestration.orchestration_models import ExecutionResult
+from ai_engine.providers.provider_registry import ProviderRegistry
 
 class OrchestrationService:
 

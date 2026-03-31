@@ -5,9 +5,9 @@ Job extraction pipeline.
 from __future__ import annotations
 from typing import Any, Dict
 
-from app.ai_engine.pipelines.base_pipeline import Pipeline, PipelineStep
-from app.ai_engine.providers.provider_registry import ProviderRegistry
-from app.ai_engine.tools.tool_registry import ToolRegistry
+from ai_engine.pipelines.base_pipeline import Pipeline, PipelineStep
+from ai_engine.providers.provider_registry import ProviderRegistry
+from ai_engine.tools.tool_registry import ToolRegistry
 
 class ScrapeJobStep(PipelineStep):
     name = "scrape_job"

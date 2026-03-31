@@ -6,9 +6,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Dict
 
-from app.ai_engine.providers.provider_registry import ProviderRegistry
-from app.ai_engine.tools.tool_registry import ToolRegistry
-from app.ai_engine.orchestration.orchestration_models import ExecutionStage, ExecutionResult
+from ai_engine.providers.provider_registry import ProviderRegistry
+from ai_engine.tools.tool_registry import ToolRegistry
+from ai_engine.orchestration.orchestration_models import ExecutionStage, ExecutionResult
 
 @dataclass(slots=True)
 class ExecuteOptions:

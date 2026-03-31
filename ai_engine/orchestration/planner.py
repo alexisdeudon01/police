@@ -6,7 +6,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Dict, Optional
 
-from app.ai_engine.orchestration.routing_rules import requires_scraping, guess_preferred_provider
+from ai_engine.orchestration.routing_rules import requires_scraping, guess_preferred_provider
 
 @dataclass(slots=True)
 class Plan:

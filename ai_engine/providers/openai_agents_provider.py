@@ -1,8 +1,8 @@
 from __future__ import annotations
 import json
 from typing import Any, Dict
-from app.ai_engine.providers.base_provider import BaseLLMProvider
-from app.ai_engine.tools.tool_registry import ToolRegistry
+from ai_engine.providers.base_provider import BaseLLMProvider
+from ai_engine.tools.tool_registry import ToolRegistry
 
 class OpenAIAgentsProvider(BaseLLMProvider):
 

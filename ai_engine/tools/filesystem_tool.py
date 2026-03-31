@@ -1,7 +1,7 @@
 from __future__ import annotations
 from typing import Dict, Any
-from app.ai_engine.tools.base_tool import BaseTool
-from app.ai_engine.providers.mcphost_client import MCPHostClient
+from ai_engine.tools.base_tool import BaseTool
+from ai_engine.providers.mcphost_client import MCPHostClient
 
 class FilesystemTool(BaseTool):
     """Filesystem operations via MCP."""

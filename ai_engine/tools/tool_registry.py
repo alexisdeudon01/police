@@ -1,5 +1,5 @@
 from typing import Dict
-from app.ai_engine.tools.base_tool import BaseTool
+from ai_engine.tools.base_tool import BaseTool
 
 class ToolRegistry:
     """Global registry for tool instances."""

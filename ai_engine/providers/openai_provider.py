@@ -2,7 +2,7 @@ from __future__ import annotations
 import json, os
 from typing import Any, Dict, Optional
 from openai import OpenAI
-from app.ai_engine.providers.base_provider import BaseLLMProvider
+from ai_engine.providers.base_provider import BaseLLMProvider
 
 class OpenAIProvider(BaseLLMProvider):
 
