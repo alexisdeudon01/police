@@ -1,0 +1,11 @@
+
+[project]
+name = "ai_engine"
+version = "1.0.0"
+description = "Refactored AI Engine"
+authors = [{name="Job Bot"}]
+requires-python = ">=3.10"
+dependencies = [
+    "pydantic>=1.10",
+    "openai>=1.0.0"
+]
