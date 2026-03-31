@@ -11,11 +11,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy dependency manifests first for better layer caching
-COPY pyproject.toml setup.cfg /app/
+COPY pyproject.toml setup.cfg requirements.txt /app/
 COPY ai_engine /app/ai_engine
 
-# Upgrade packaging tools and install package
+# Upgrade packaging tools and install package + pinned requirements
 RUN pip install --no-cache-dir --upgrade pip setuptools wheel \
+    && pip install --no-cache-dir -r requirements.txt \
     && pip install --no-cache-dir -e .
 
 # Default command keeps container alive for package usage/testing

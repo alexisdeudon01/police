@@ -33,6 +33,9 @@ echo "==> Upgrading pip/setuptools/wheel"
 pip install --upgrade pip setuptools wheel
 
 # 5) Install project dependencies/package
+echo "==> Installing dependencies from requirements.txt"
+pip install -r requirements.txt
+
 echo "==> Installing project in editable mode"
 pip install -e .
 

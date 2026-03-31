@@ -1,15 +1,8 @@
-# TODO
-
-- [x] Review and track implementation steps
-- [x] Create `ARCHITECTURE.md` with architecture diagram and flow
-- [x] Create `Dockerfile` for the `ai_engine` package
-- [x] Create `start.sh` to:
-  - [x] create/use virtual environment `.venv`
-  - [x] validate Python/pip availability
-  - [x] upgrade pip/setuptools/wheel
-  - [x] install dependencies from `pyproject.toml` (via editable install)
-  - [x] stop and remove previous container if present
-  - [x] build Docker image `ai-engine:latest`
-  - [x] run container `ai-engine-container`
-- [x] Mark completed tasks in this file
-- [x] Make `start.sh` executable
+- [x] Audit dependency declarations and runtime import requirements
+- [ ] Add/update requirements.txt with all necessary runtime modules
+- [ ] Update packaging/build files (pyproject.toml, Dockerfile, start.sh) to install consistent deps
+- [ ] Fix mcp_server runtime availability and validate import/module execution
+- [ ] Reduce noisy INFO logs in runtime startup configuration
+- [ ] Address DB schema readiness for business_entities table (init/migration path)
+- [ ] Run critical-path tests (imports, container run, key API endpoints, scrape path, dashboard DB path)
+- [ ] Prepare GitHub secret verification instructions/commands for Scrapy token

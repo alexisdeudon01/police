@@ -6,3 +6,8 @@ Author: Job Bot
 Requires-Python: >=3.10
 Requires-Dist: pydantic>=1.10
 Requires-Dist: openai>=1.0.0
+Requires-Dist: mcp-server>=0.1.4
+Requires-Dist: httpx>=0.24.0
+Requires-Dist: tqdm>=4.66.0
+Requires-Dist: anyio>=3.7.0
+Requires-Dist: typing-extensions>=4.8.0
