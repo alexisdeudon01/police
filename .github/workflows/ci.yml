@@ -7,8 +7,22 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@v4
+
+      - name: Create .env from GitHub Secrets
+        run: |
+          cat <<EOF > .env
+          ANTHROPIC_API_KEY=${{ secrets.ANTHROPIC_API_KEY }}
+          OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}
+          SGAI_API_KEY=${{ secrets.SGAI_API_KEY }}
+          GH_TOKEN=${{ secrets.GH_TOKEN }}
+          POSTGRES_USER=${{ secrets.POSTGRES_USER }}
+          POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}
+          POSTGRES_DB=${{ secrets.POSTGRES_DB }}
+          DATABASE_URL=${{ secrets.DATABASE_URL }}
+          EOF
 
       - uses: actions/setup-python@v5
         with:
@@ -21,3 +35,7 @@ jobs:
 
       - name: Build Docker images
         run: docker compose build
+
+      - name: Remove .env
+        if: always()
+        run: rm -f .env

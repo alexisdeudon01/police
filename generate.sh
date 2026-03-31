@@ -5,12 +5,33 @@ log() {
   echo "[SETUP] $*"
 }
 
-ROOT_DIR="$(pwd)"
+require_env() {
+  local name="$1"
+  if [ -z "${!name:-}" ]; then
+    echo "[ERROR] Missing required environment variable: $name" >&2
+    exit 1
+  fi
+}
 
 log "Starting full stack setup..."
 
 # ---------------------------------------------------------
-# 1. Create directory structure
+# 1. Validate required environment variables
+# ---------------------------------------------------------
+require_env ANTHROPIC_API_KEY
+require_env OPENAI_API_KEY
+require_env SGAI_API_KEY
+require_env GH_TOKEN
+require_env POSTGRES_USER
+require_env POSTGRES_PASSWORD
+require_env POSTGRES_DB
+require_env DATABASE_URL
+
+DASHBOARD_PORT="${DASHBOARD_PORT:-8080}"
+POSTGRES_PORT="${POSTGRES_PORT:-5432}"
+
+# ---------------------------------------------------------
+# 2. Create directory structure
 # ---------------------------------------------------------
 log "Creating service directories..."
 
@@ -19,54 +40,7 @@ mkdir -p dashboard
 mkdir -p orchestrator
 
 # ---------------------------------------------------------
-# 2. Create .env file (only if missing)
-# ---------------------------------------------------------
-if [ ! -f ".env" ]; then
-  cat > .env <<EOF
-ANTHROPIC_API_KEY=
-OPENAI_API_KEY=
-SGAI_API_KEY=
-GH_TOKEN=
-POSTGRES_USER=postgres
-POSTGRES_PASSWORD=postgres
-POSTGRES_DB=appdb
-DATABASE_URL=postgresql+psycopg://postgres:postgres@localhost:5432/appdb
-DASHBOARD_PORT=8080
-EOF
-  log ".env file created."
-else
-  log ".env already exists. Skipping."
-fi
-
-# ---------------------------------------------------------
-# 3. Load environment
-# ---------------------------------------------------------
-set -o allexport
-source .env
-set +o allexport
-
-if [ -n "${DATABASE_URL:-}" ]; then
-  DB_URI_NO_SCHEME="${DATABASE_URL#*://}"
-  DB_CREDS="${DB_URI_NO_SCHEME%@*}"
-  DB_HOST_AND_PATH="${DB_URI_NO_SCHEME#*@}"
-
-  DATABASE_URL_USER="${DB_CREDS%%:*}"
-  DATABASE_URL_PASSWORD="${DB_CREDS#*:}"
-  DATABASE_URL_HOST="$(echo "$DB_HOST_AND_PATH" | sed -E 's|^([^:/]+).*$|\1|')"
-  DATABASE_URL_PORT="$(echo "$DB_HOST_AND_PATH" | sed -E 's|^[^:]+:([0-9]+)/.*$|\1|')"
-  DATABASE_URL_DB="$(echo "$DB_HOST_AND_PATH" | sed -E 's|^[^/]+/(.+)$|\1|')"
-fi
-
-POSTGRES_USER="${POSTGRES_USER:-${DATABASE_URL_USER:-postgres}}"
-POSTGRES_PASSWORD="${POSTGRES_PASSWORD:-${DATABASE_URL_PASSWORD:-postgres}}"
-POSTGRES_DB="${POSTGRES_DB:-${DATABASE_URL_DB:-appdb}}"
-POSTGRES_PORT="${POSTGRES_PORT:-${DATABASE_URL_PORT:-5432}}"
-DASHBOARD_PORT="${DASHBOARD_PORT:-8080}"
-
-export POSTGRES_USER POSTGRES_PASSWORD POSTGRES_DB POSTGRES_PORT DASHBOARD_PORT
-
-# ---------------------------------------------------------
-# 4. Generate Dockerfile: DATABASE
+# 3. Generate Dockerfile: DATABASE
 # ---------------------------------------------------------
 cat > database/Dockerfile <<EOF
 FROM postgres:16
@@ -81,7 +55,7 @@ EOF
 log "Database Dockerfile created."
 
 # ---------------------------------------------------------
-# 5. Generate Dockerfile: DASHBOARD
+# 4. Generate Dockerfile: DASHBOARD
 # ---------------------------------------------------------
 cat > dashboard/requirements.txt <<EOF
 fastapi
@@ -104,6 +78,9 @@ def home():
         "database_url_present": bool(os.getenv("DATABASE_URL")),
         "postgres_user_present": bool(os.getenv("POSTGRES_USER")),
         "postgres_db": os.getenv("POSTGRES_DB"),
+        "openai_key_present": bool(os.getenv("OPENAI_API_KEY")),
+        "anthropic_key_present": bool(os.getenv("ANTHROPIC_API_KEY")),
+        "github_token_present": bool(os.getenv("GH_TOKEN")),
     }
 EOF
 
@@ -128,7 +105,7 @@ EOF
 log "Dashboard Dockerfile created."
 
 # ---------------------------------------------------------
-# 6. Generate orchestrator requirements
+# 5. Generate orchestrator requirements
 # ---------------------------------------------------------
 cat > orchestrator/requirements.txt <<EOF
 -r ../requirements.txt
@@ -137,7 +114,7 @@ EOF
 log "Orchestrator requirements created."
 
 # ---------------------------------------------------------
-# 7. Generate Dockerfile: ORCHESTRATOR
+# 6. Generate Dockerfile: ORCHESTRATOR
 # ---------------------------------------------------------
 cat > orchestrator/Dockerfile <<EOF
 FROM python:3.11-slim
@@ -160,7 +137,7 @@ EOF
 log "Orchestrator Dockerfile created."
 
 # ---------------------------------------------------------
-# 8. Create docker-compose.yml
+# 7. Create docker-compose.yml
 # ---------------------------------------------------------
 cat > docker-compose.yml <<EOF
 version: "3.9"
@@ -191,10 +168,10 @@ services:
       dockerfile: Dockerfile
     container_name: dashboard_container
     environment:
-      ANTHROPIC_API_KEY: "${ANTHROPIC_API_KEY:-}"
-      OPENAI_API_KEY: "${OPENAI_API_KEY:-}"
-      SGAI_API_KEY: "${SGAI_API_KEY:-}"
-      GH_TOKEN: "${GH_TOKEN:-}"
+      ANTHROPIC_API_KEY: "${ANTHROPIC_API_KEY}"
+      OPENAI_API_KEY: "${OPENAI_API_KEY}"
+      SGAI_API_KEY: "${SGAI_API_KEY}"
+      GH_TOKEN: "${GH_TOKEN}"
       POSTGRES_USER: "${POSTGRES_USER}"
       POSTGRES_PASSWORD: "${POSTGRES_PASSWORD}"
       POSTGRES_DB: "${POSTGRES_DB}"
@@ -211,10 +188,10 @@ services:
       dockerfile: orchestrator/Dockerfile
     container_name: orchestrator_container
     environment:
-      ANTHROPIC_API_KEY: "${ANTHROPIC_API_KEY:-}"
-      OPENAI_API_KEY: "${OPENAI_API_KEY:-}"
-      SGAI_API_KEY: "${SGAI_API_KEY:-}"
-      GH_TOKEN: "${GH_TOKEN:-}"
+      ANTHROPIC_API_KEY: "${ANTHROPIC_API_KEY}"
+      OPENAI_API_KEY: "${OPENAI_API_KEY}"
+      SGAI_API_KEY: "${SGAI_API_KEY}"
+      GH_TOKEN: "${GH_TOKEN}"
       POSTGRES_USER: "${POSTGRES_USER}"
       POSTGRES_PASSWORD: "${POSTGRES_PASSWORD}"
       POSTGRES_DB: "${POSTGRES_DB}"
@@ -230,7 +207,7 @@ EOF
 log "docker-compose.yml created."
 
 # ---------------------------------------------------------
-# 9. Create Makefile
+# 8. Create Makefile
 # ---------------------------------------------------------
 cat > Makefile <<'EOF'
 bootstrap:
@@ -256,7 +233,7 @@ EOF
 log "Makefile created."
 
 # ---------------------------------------------------------
-# 10. Create bootstrap script
+# 9. Create bootstrap script
 # ---------------------------------------------------------
 cat > bootstrap.sh <<'EOF'
 #!/usr/bin/env bash
@@ -264,11 +241,22 @@ set -euo pipefail
 
 log() { echo "[BOOTSTRAP] $*"; }
 
-if [ -f ".env" ]; then
-  set -o allexport
-  source .env
-  set +o allexport
-fi
+require_env() {
+  local name="$1"
+  if [ -z "${!name:-}" ]; then
+    echo "[ERROR] Missing required environment variable: $name" >&2
+    exit 1
+  fi
+}
+
+require_env ANTHROPIC_API_KEY
+require_env OPENAI_API_KEY
+require_env SGAI_API_KEY
+require_env GH_TOKEN
+require_env POSTGRES_USER
+require_env POSTGRES_PASSWORD
+require_env POSTGRES_DB
+require_env DATABASE_URL
 
 log "Checking Python..."
 command -v python3 >/dev/null || { log "python3 missing"; exit 1; }
