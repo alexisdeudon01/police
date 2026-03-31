@@ -1,4 +1,8 @@
 {
   "python.terminal.useEnvFile": true,
-  "python.envFile": "${workspaceFolder}/.env"
+  "python.envFile": "${workspaceFolder}/.env",
+  "python-envs.workspaceSearchPaths": [
+    "./**/.venv"
+  ],
+  "python-envs.pythonProjects": []
 }

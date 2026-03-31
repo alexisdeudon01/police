@@ -17,18 +17,20 @@ log "Creating service directories..."
 mkdir -p database
 mkdir -p dashboard
 mkdir -p orchestrator
-mkdir -p .github/workflows
 
 # ---------------------------------------------------------
 # 2. Create .env file (only if missing)
 # ---------------------------------------------------------
 if [ ! -f ".env" ]; then
   cat > .env <<EOF
-DB_USER=admin
-DB_PASSWORD=secret
-DB_NAME=appdb
-DB_PORT=5432
-
+ANTHROPIC_API_KEY=
+OPENAI_API_KEY=
+SGAI_API_KEY=
+GH_TOKEN=
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=postgres
+POSTGRES_DB=appdb
+DATABASE_URL=postgresql+psycopg://postgres:postgres@localhost:5432/appdb
 DASHBOARD_PORT=8080
 EOF
   log ".env file created."
@@ -36,7 +38,9 @@ else
   log ".env already exists. Skipping."
 fi
 
-# Load .env values for use below
+# ---------------------------------------------------------
+# 3. Load environment
+# ---------------------------------------------------------
 set -o allexport
 source .env
 set +o allexport
@@ -46,31 +50,30 @@ if [ -n "${DATABASE_URL:-}" ]; then
   DB_CREDS="${DB_URI_NO_SCHEME%@*}"
   DB_HOST_AND_PATH="${DB_URI_NO_SCHEME#*@}"
 
-  DB_USER="${DB_USER:-${DB_CREDS%%:*}}"
-  DB_PASSWORD="${DB_PASSWORD:-${DB_CREDS#*:}}"
-
-  DB_PORT_FROM_URL="$(echo "$DB_HOST_AND_PATH" | sed -E 's|^[^:]+:([0-9]+)/.*$|\1|')"
-  DB_NAME_FROM_URL="$(echo "$DB_HOST_AND_PATH" | sed -E 's|^[^/]+/(.+)$|\1|')"
-
-  DB_PORT="${DB_PORT:-${DB_PORT_FROM_URL}}"
-  DB_NAME="${DB_NAME:-${DB_NAME_FROM_URL}}"
+  DATABASE_URL_USER="${DB_CREDS%%:*}"
+  DATABASE_URL_PASSWORD="${DB_CREDS#*:}"
+  DATABASE_URL_HOST="$(echo "$DB_HOST_AND_PATH" | sed -E 's|^([^:/]+).*$|\1|')"
+  DATABASE_URL_PORT="$(echo "$DB_HOST_AND_PATH" | sed -E 's|^[^:]+:([0-9]+)/.*$|\1|')"
+  DATABASE_URL_DB="$(echo "$DB_HOST_AND_PATH" | sed -E 's|^[^/]+/(.+)$|\1|')"
 fi
 
-DB_USER="${DB_USER:-admin}"
-DB_PASSWORD="${DB_PASSWORD:-secret}"
-DB_NAME="${DB_NAME:-appdb}"
-DB_PORT="${DB_PORT:-5432}"
+POSTGRES_USER="${POSTGRES_USER:-${DATABASE_URL_USER:-postgres}}"
+POSTGRES_PASSWORD="${POSTGRES_PASSWORD:-${DATABASE_URL_PASSWORD:-postgres}}"
+POSTGRES_DB="${POSTGRES_DB:-${DATABASE_URL_DB:-appdb}}"
+POSTGRES_PORT="${POSTGRES_PORT:-${DATABASE_URL_PORT:-5432}}"
 DASHBOARD_PORT="${DASHBOARD_PORT:-8080}"
 
+export POSTGRES_USER POSTGRES_PASSWORD POSTGRES_DB POSTGRES_PORT DASHBOARD_PORT
+
 # ---------------------------------------------------------
-# 3. Generate Dockerfile: DATABASE
+# 4. Generate Dockerfile: DATABASE
 # ---------------------------------------------------------
 cat > database/Dockerfile <<EOF
 FROM postgres:16
 
-ENV POSTGRES_USER=${DB_USER}
-ENV POSTGRES_PASSWORD=${DB_PASSWORD}
-ENV POSTGRES_DB=${DB_NAME}
+ENV POSTGRES_USER=${POSTGRES_USER}
+ENV POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+ENV POSTGRES_DB=${POSTGRES_DB}
 
 EXPOSE 5432
 EOF
@@ -78,14 +81,17 @@ EOF
 log "Database Dockerfile created."
 
 # ---------------------------------------------------------
-# 4. Generate Dockerfile: DASHBOARD
+# 5. Generate Dockerfile: DASHBOARD
 # ---------------------------------------------------------
 cat > dashboard/requirements.txt <<EOF
 fastapi
-uvicorn
+uvicorn[standard]
+psycopg[binary]
 EOF
 
 cat > dashboard/main.py <<EOF
+import os
+
 from fastapi import FastAPI
 
 app = FastAPI()
@@ -93,7 +99,12 @@ app = FastAPI()
 
 @app.get("/")
 def home():
-    return {"status": "dashboard running"}
+    return {
+        "status": "dashboard running",
+        "database_url_present": bool(os.getenv("DATABASE_URL")),
+        "postgres_user_present": bool(os.getenv("POSTGRES_USER")),
+        "postgres_db": os.getenv("POSTGRES_DB"),
+    }
 EOF
 
 cat > dashboard/Dockerfile <<EOF
@@ -101,10 +112,15 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
+
+EXPOSE 8000
 
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
 EOF
@@ -112,24 +128,31 @@ EOF
 log "Dashboard Dockerfile created."
 
 # ---------------------------------------------------------
-# 5. Generate Dockerfile: ORCHESTRATOR
+# 6. Generate orchestrator requirements
 # ---------------------------------------------------------
 cat > orchestrator/requirements.txt <<EOF
 -r ../requirements.txt
 EOF
 
+log "Orchestrator requirements created."
+
+# ---------------------------------------------------------
+# 7. Generate Dockerfile: ORCHESTRATOR
+# ---------------------------------------------------------
 cat > orchestrator/Dockerfile <<EOF
 FROM python:3.11-slim
 
 WORKDIR /app
 
-COPY requirements.txt /app/requirements.txt
-RUN pip install --no-cache-dir -r requirements.txt
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+
+COPY orchestrator/requirements.txt /app/requirements.txt
+RUN pip install --no-cache-dir -r /app/requirements.txt
 
 COPY ai_engine /app/ai_engine
 COPY pyproject.toml /app/
 COPY setup.cfg /app/
-COPY setup.py /app/
 
 CMD ["python", "-m", "ai_engine.orchestration.executor"]
 EOF
@@ -137,42 +160,77 @@ EOF
 log "Orchestrator Dockerfile created."
 
 # ---------------------------------------------------------
-# 6. Create docker-compose.yml
+# 8. Create docker-compose.yml
 # ---------------------------------------------------------
 cat > docker-compose.yml <<EOF
 version: "3.9"
 
 services:
   database:
-    build: ./database
+    build:
+      context: ./database
+      dockerfile: Dockerfile
     container_name: db_container
-    env_file: .env
+    environment:
+      POSTGRES_USER: "${POSTGRES_USER}"
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD}"
+      POSTGRES_DB: "${POSTGRES_DB}"
     ports:
-      - "${DB_PORT}:5432"
+      - "${POSTGRES_PORT}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   dashboard:
-    build: ./dashboard
+    build:
+      context: ./dashboard
+      dockerfile: Dockerfile
     container_name: dashboard_container
-    env_file: .env
+    environment:
+      ANTHROPIC_API_KEY: "${ANTHROPIC_API_KEY:-}"
+      OPENAI_API_KEY: "${OPENAI_API_KEY:-}"
+      SGAI_API_KEY: "${SGAI_API_KEY:-}"
+      GH_TOKEN: "${GH_TOKEN:-}"
+      POSTGRES_USER: "${POSTGRES_USER}"
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD}"
+      POSTGRES_DB: "${POSTGRES_DB}"
+      DATABASE_URL: "postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@database:5432/${POSTGRES_DB}"
     ports:
       - "${DASHBOARD_PORT}:8000"
     depends_on:
-      - database
+      database:
+        condition: service_healthy
 
   orchestrator:
     build:
       context: .
       dockerfile: orchestrator/Dockerfile
     container_name: orchestrator_container
-    env_file: .env
+    environment:
+      ANTHROPIC_API_KEY: "${ANTHROPIC_API_KEY:-}"
+      OPENAI_API_KEY: "${OPENAI_API_KEY:-}"
+      SGAI_API_KEY: "${SGAI_API_KEY:-}"
+      GH_TOKEN: "${GH_TOKEN:-}"
+      POSTGRES_USER: "${POSTGRES_USER}"
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD}"
+      POSTGRES_DB: "${POSTGRES_DB}"
+      DATABASE_URL: "postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@database:5432/${POSTGRES_DB}"
     depends_on:
-      - database
+      database:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
 EOF
 
 log "docker-compose.yml created."
 
 # ---------------------------------------------------------
-# 7. Create Makefile
+# 9. Create Makefile
 # ---------------------------------------------------------
 cat > Makefile <<'EOF'
 bootstrap:
@@ -198,59 +256,7 @@ EOF
 log "Makefile created."
 
 # ---------------------------------------------------------
-# 8. Create GitHub Actions CI
-# ---------------------------------------------------------
-cat > .github/workflows/ci.yml <<EOF
-name: CI
-
-on:
-  push:
-  pull_request:
-
-jobs:
-  build:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-
-      - name: Install project dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-
-      - name: Build Docker images
-        run: docker compose build
-EOF
-
-log "GitHub Actions CI created."
-
-# ---------------------------------------------------------
-# 9. Create GitLab CI
-# ---------------------------------------------------------
-cat > .gitlab-ci.yml <<EOF
-stages:
-  - build
-  - deploy
-
-build:
-  stage: build
-  script:
-    - docker compose build
-
-deploy:
-  stage: deploy
-  script:
-    - docker compose up -d
-EOF
-
-log "GitLab CI created."
-
-# ---------------------------------------------------------
-# 10. Create the enhanced bootstrap script
+# 10. Create bootstrap script
 # ---------------------------------------------------------
 cat > bootstrap.sh <<'EOF'
 #!/usr/bin/env bash
@@ -258,37 +264,30 @@ set -euo pipefail
 
 log() { echo "[BOOTSTRAP] $*"; }
 
-# Load .env
 if [ -f ".env" ]; then
   set -o allexport
   source .env
   set +o allexport
 fi
 
-# Check Python
 log "Checking Python..."
 command -v python3 >/dev/null || { log "python3 missing"; exit 1; }
 
 VENV_DIR=".venv"
 
-# Create venv
 if [ ! -d "$VENV_DIR" ]; then
   python3 -m venv "$VENV_DIR"
 fi
 
-# Activate
 source "$VENV_DIR/bin/activate"
 
-# Install dependencies
 pip install --upgrade pip setuptools wheel
 pip install -r requirements.txt
 pip install -e .
 
-# Check Docker
 log "Checking Docker..."
 command -v docker >/dev/null || { log "Docker missing"; exit 1; }
 
-# Build & start containers
 log "Building with docker compose..."
 docker compose build
 
@@ -300,5 +299,4 @@ EOF
 chmod +x bootstrap.sh
 
 log "bootstrap.sh created."
-
 log "Full stack setup completed successfully."
