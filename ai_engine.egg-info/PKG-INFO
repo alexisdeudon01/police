@@ -1,0 +1,8 @@
+Metadata-Version: 2.4
+Name: ai_engine
+Version: 1.0.0
+Summary: Refactored AI Engine
+Author: Job Bot
+Requires-Python: >=3.10
+Requires-Dist: pydantic>=1.10
+Requires-Dist: openai>=1.0.0
