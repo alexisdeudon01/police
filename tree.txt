@@ -1,0 +1,59 @@
+.
+├── ai_engine
+│   ├── __init__.py
+│   ├── models
+│   │   ├── entities.py
+│   │   ├── llm_record.py
+│   │   └── pipeline_models.py
+│   ├── orchestration
+│   │   ├── executor.py
+│   │   ├── orchestration_models.py
+│   │   ├── orchestration_service.py
+│   │   ├── planner.py
+│   │   └── routing_rules.py
+│   ├── pipelines
+│   │   ├── base_pipeline.py
+│   │   ├── cv_extraction_pipeline.py
+│   │   ├── job_extraction_pipeline.py
+│   │   └── pipeline_runner.py
+│   ├── providers
+│   │   ├── base_provider.py
+│   │   ├── mcphost_client.py
+│   │   ├── openai_agents_provider.py
+│   │   ├── openai_provider.py
+│   │   └── provider_registry.py
+│   ├── __pycache__
+│   │   └── __init__.cpython-312.pyc
+│   ├── README.md
+│   ├── tools
+│   │   ├── base_tool.py
+│   │   ├── fetch_tool.py
+│   │   ├── filesystem_tool.py
+│   │   ├── github_tool.py
+│   │   ├── markdownify_tool.py
+│   │   ├── postgres_tool.py
+│   │   ├── scraper_tool.py
+│   │   └── tool_registry.py
+│   ├── utils
+│   │   ├── errors.py
+│   │   ├── json_tools.py
+│   │   ├── scraping_keywords.py
+│   │   └── text_tools.py
+│   └── VERSION
+├── ai_engine.egg-info
+│   ├── dependency_links.txt
+│   ├── PKG-INFO
+│   ├── requires.txt
+│   ├── SOURCES.txt
+│   └── top_level.txt
+├── ARCHITECTURE.md
+├── Dockerfile
+├── police.code-workspace
+├── pyproject.toml
+├── requirements.txt
+├── setup.cfg
+├── start.sh
+├── TODO.md
+└── tree.txt
+
+10 directories, 47 files

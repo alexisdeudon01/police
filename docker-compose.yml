@@ -1,0 +1,41 @@
+version: "3.9"
+
+services:
+  database:
+    build: ./database
+    container_name: db_container
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      DATABASE_URL: ${DATABASE_URL}
+    ports:
+      - "5432:5432"
+
+  dashboard:
+    build: ./dashboard
+    container_name: dashboard_container
+    environment:
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      SGAI_API_KEY: ${SGAI_API_KEY}
+      GH_TOKEN: ${GH_TOKEN}
+      DATABASE_URL: ${DATABASE_URL}
+    ports:
+      - "8080:8000"
+    depends_on:
+      - database
+
+  orchestrator:
+    build:
+      context: .
+      dockerfile: orchestrator/Dockerfile
+    container_name: orchestrator_container
+    environment:
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      SGAI_API_KEY: ${SGAI_API_KEY}
+      GH_TOKEN: ${GH_TOKEN}
+      DATABASE_URL: ${DATABASE_URL}
+    depends_on:
+      - database
